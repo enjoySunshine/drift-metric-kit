@@ -147,7 +147,13 @@ export default class OTProcessor {
     }
 
     lookups.sort((a, b) => a.index - b.index);
-    return lookups;
+
+    // Like HarfBuzz, merge duplicate lookups in a stage: a feature may list
+    // the same lookup twice (Mada's kern does), and features applied in one
+    // stage may share lookups. Each lookup runs once, in lookup order.
+    return lookups.filter(
+      (lookup, i) => i === 0 || lookup.index !== lookups[i - 1].index,
+    );
   }
 
   substituteFeatureForVariations(featureIndex) {

@@ -189,6 +189,12 @@ export interface GlyphRun {
   advanceHeight: number;
 
   /**
+   * The x coordinate where each glyph's ink starts in the run: the pen
+   * position at that glyph, plus the left edge of the glyph's own outline.
+   */
+  inkStarts: number[];
+
+  /**
    * The bounding box containing all glyphs in the run.
    */
   bbox: BBOX;

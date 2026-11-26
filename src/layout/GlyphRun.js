@@ -90,6 +90,23 @@ export default class GlyphRun {
   }
 
   /**
+   * The x coordinate where each glyph's ink starts in the run: the pen
+   * position at that glyph, plus the left edge of the glyph's own outline.
+   * @type {number[]}
+   */
+  get inkStarts() {
+    let starts = [];
+    let x = 0;
+    for (let index = 0; index < this.glyphs.length; index++) {
+      let position = this.positions[index];
+      starts.push(x + position.xOffset + this.glyphs[index].bbox.minX);
+      x += position.xAdvance;
+    }
+
+    return starts;
+  }
+
+  /**
    * The bounding box containing all glyphs in the run.
    * @type {BBox}
    */

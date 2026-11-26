@@ -33,6 +33,63 @@ describe('glyph positioning', function () {
     });
   });
 
+  describe('variable font positioning', function () {
+    // Mada's GPOS kern feature lists its pair lookup twice. Like HarfBuzz,
+    // each lookup is applied once per stage. Expected values are hb-shape's.
+    let open = (settings) =>
+      settings
+        ? fontkit
+            .openSync(new URL('data/Mada/Mada-VF.ttf', import.meta.url))
+            .getVariation(settings)
+        : fontkit.openSync(new URL('data/Mada/Mada-VF.ttf', import.meta.url));
+
+    it('applies a lookup listed twice in a feature only once', function () {
+      let run = open().layout('To');
+      assert.deepEqual(
+        run.positions.map((p) => p.xAdvance),
+        [474, 547],
+      );
+      assert.deepEqual(
+        open()
+          .layout('AV')
+          .positions.map((p) => p.xAdvance),
+        [538, 529],
+      );
+    });
+
+    it('rounds variation device deltas to whole units', function () {
+      assert.deepEqual(
+        open({ wght: 900 })
+          .layout('To')
+          .positions.map((p) => p.xAdvance),
+        [482, 557],
+      );
+      assert.deepEqual(
+        open({ wght: 200 })
+          .layout('To')
+          .positions.map((p) => p.xAdvance),
+        [467, 538],
+      );
+    });
+
+    it("reports where each glyph's ink starts in the run", function () {
+      // pen position plus the left edge of the glyph's own outline
+      assert.deepEqual(open().layout('To').inkStarts, [27, 517]);
+      assert.deepEqual(open().layout('AV').inkStarts, [0, 536]);
+      assert.deepEqual(open({ wght: 900 }).layout('To').inkStarts, [25, 516]);
+      assert.deepEqual(open({ wght: 200 }).layout('To').inkStarts, [29, 517]);
+    });
+
+    it("does not leak one variation's positions into another", function () {
+      let font = open();
+      assert.equal(
+        font.getVariation({ wght: 900 }).layout('To').inkStarts[1],
+        516,
+      );
+      assert.equal(font.layout('To').inkStarts[1], 517);
+    });
+  });
+
   describe('AAT features', function () {
     let font = fontkit.openSync(
       new URL('data/Play/Play-Regular.ttf', import.meta.url),

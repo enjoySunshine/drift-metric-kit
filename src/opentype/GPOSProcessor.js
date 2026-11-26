@@ -19,39 +19,48 @@ export default class GPOSProcessor extends OTProcessor {
       position.yOffset += value.yPlacement;
     }
 
-    // Adjustments for font variations
+    // Adjustments for font variations. Like HarfBuzz, round each device
+    // delta to whole units, so positions stay on the integer grid.
     let variationProcessor = this.font._variationProcessor;
     let variationStore = this.font.GDEF && this.font.GDEF.itemVariationStore;
     if (variationProcessor && variationStore) {
       if (value.xPlaDevice) {
-        position.xOffset += variationProcessor.getDelta(
-          variationStore,
-          value.xPlaDevice.a,
-          value.xPlaDevice.b,
+        position.xOffset += Math.round(
+          variationProcessor.getDelta(
+            variationStore,
+            value.xPlaDevice.a,
+            value.xPlaDevice.b,
+          ),
         );
       }
 
       if (value.yPlaDevice) {
-        position.yOffset += variationProcessor.getDelta(
-          variationStore,
-          value.yPlaDevice.a,
-          value.yPlaDevice.b,
+        position.yOffset += Math.round(
+          variationProcessor.getDelta(
+            variationStore,
+            value.yPlaDevice.a,
+            value.yPlaDevice.b,
+          ),
         );
       }
 
       if (value.xAdvDevice) {
-        position.xAdvance += variationProcessor.getDelta(
-          variationStore,
-          value.xAdvDevice.a,
-          value.xAdvDevice.b,
+        position.xAdvance += Math.round(
+          variationProcessor.getDelta(
+            variationStore,
+            value.xAdvDevice.a,
+            value.xAdvDevice.b,
+          ),
         );
       }
 
       if (value.yAdvDevice) {
-        position.yAdvance += variationProcessor.getDelta(
-          variationStore,
-          value.yAdvDevice.a,
-          value.yAdvDevice.b,
+        position.yAdvance += Math.round(
+          variationProcessor.getDelta(
+            variationStore,
+            value.yAdvDevice.a,
+            value.yAdvDevice.b,
+          ),
         );
       }
     }

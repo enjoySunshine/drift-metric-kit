@@ -3,26 +3,19 @@ import { openSync } from "../dist/node/index.js";
 
 const file = new URL("../test/data/Mada/Mada-VF.ttf", import.meta.url);
 
+// Lay out one line. The drawing only places what the layout hands back:
+// each glyph's origin comes from the positions, and each glyph's ink start
+// is read from the run, not recomputed here.
 function measure(font, text) {
   const run = font.layout(text);
   let pen = 0;
-  const glyphs = [];
-  for (let i = 0; i < run.glyphs.length; i++) {
-    const glyph = run.glyphs[i];
+  const glyphs = run.glyphs.map((glyph, i) => {
     const position = run.positions[i];
     const origin = pen + position.xOffset;
-    glyphs.push({
-      d: glyph.path.toSVG(),
-      origin,
-      ink: origin + glyph.bbox.minX,
-      minX: glyph.bbox.minX,
-      advance: glyph.advanceWidth,
-      xAdvance: position.xAdvance,
-      xOffset: position.xOffset,
-    });
     pen += position.xAdvance;
-  }
-  return { glyphs, width: pen };
+    return { d: glyph.path.toSVG(), origin };
+  });
+  return { run, glyphs, width: pen };
 }
 
 function num(value) {
@@ -32,36 +25,45 @@ function num(value) {
 
 const base = openSync(file);
 const heavy = openSync(file).getVariation({ wght: 900 });
+
+// Weight 900 is laid out first, on purpose: the default line must still
+// come back with its own positions.
+const heavyLine = measure(heavy, "To");
+const baseLine = measure(base, "To");
+
 const rows = [
-  { label: "默认字重", line: measure(base, "To"), top: 80 },
-  { label: "字重 900", line: measure(heavy, "To"), top: 860 },
+  { label: "默认字重", line: baseLine, top: 80 },
+  { label: "字重 900", line: heavyLine, top: 860 },
 ];
 
 const parts = [];
 for (const row of rows) {
-  const second = row.line.glyphs[1];
-  const first = row.line.glyphs[0];
+  const { run, glyphs, width } = row.line;
+  const ink = run.inkStarts[1];
+  const origin = glyphs[1].origin;
   parts.push(`<g transform="translate(48 ${row.top + 700}) scale(1 -1)">`);
-  parts.push(`<line x1="0" y1="0" x2="${row.line.width}" y2="0" stroke="#5c5346" stroke-width="2"/>`);
-  for (const glyph of row.line.glyphs) {
-    parts.push(`<path d="${glyph.d}" transform="translate(${glyph.origin} 0)" fill="#f4f1ea"/>`);
+  parts.push(
+    `<line x1="0" y1="0" x2="${width}" y2="0" stroke="#5c5346" stroke-width="2"/>`,
+  );
+  for (const glyph of glyphs) {
+    parts.push(
+      `<path d="${glyph.d}" transform="translate(${glyph.origin} 0)" fill="#f4f1ea"/>`,
+    );
   }
   parts.push(
-    `<line x1="${second.ink}" y1="-40" x2="${second.ink}" y2="680" stroke="#d85a30" stroke-width="3"/>`,
+    `<line x1="${ink}" y1="-40" x2="${ink}" y2="680" stroke="#d85a30" stroke-width="3"/>`,
   );
   parts.push(`</g>`);
   parts.push(
-    `<text x="48" y="${row.top + 24}" fill="#f4f1ea" font-family="sans-serif" font-size="28">${row.label}  第二个字起笔 ${num(second.ink)}  笔位 ${num(second.origin)}  单独量前进 ${num(first.advance)} / ${num(second.advance)}  左缘 ${num(second.minX)}</text>`,
+    `<text x="48" y="${row.top + 24}" fill="#f4f1ea" font-family="sans-serif" font-size="28">${row.label}  第二个字起笔 ${num(ink)}  笔位 ${num(origin)}  单独量前进 ${num(run.glyphs[0].advanceWidth)} / ${num(run.glyphs[1].advanceWidth)}  左缘 ${num(run.glyphs[1].bbox.minX)}</text>`,
   );
   console.log(
     row.label,
     JSON.stringify({
-      origin: second.origin,
-      ink: second.ink,
-      firstAdvance: first.advance,
-      secondAdvance: second.advance,
-      secondMinX: second.minX,
-      xAdvance: [first.xAdvance, second.xAdvance],
+      inkStarts: run.inkStarts,
+      xAdvance: run.positions.map((p) => p.xAdvance),
+      advances: run.glyphs.map((g) => g.advanceWidth),
+      minX: run.glyphs.map((g) => g.bbox.minX),
     }),
   );
 }
